@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="zh-TW">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>條碼編號掃描器</title>
+  <script src="https://unpkg.com/@zxing/library@latest/umd/index.min.js"></script>
+  <style>
+        body {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 50%, #34d399 100%);
+            min-height: 100%;
+            color: #065f46;
+        }
+        
+        html {
+            height: 100%;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            color: #064e3b;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.8;
+            color: #047857;
+        }
+        
+        .scanner-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 2px solid rgba(52, 211, 153, 0.3);
+        }
+        
+        .video-container {
+            position: relative;
+            display: inline-block;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #f0fdf4;
+            border: 3px solid #10b981;
+        }
+        
+        #video {
+            width: 100%;
+            max-width: 600px;
+            height: 400px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .scan-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        
+        .scan-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #10b981, #10b981, transparent);
+            animation: scan 2s linear infinite;
+            opacity: 0;
+            box-shadow: 0 0 10px #10b981;
+        }
+        
+        .scanner-container.scanning .scan-line {
+            opacity: 0.8;
+        }
+        
+        .scan-frame {
+            position: absolute;
+            top: 25%;
+            left: 15%;
+            right: 15%;
+            bottom: 25%;
+            border: 2px solid #10b981;
+            border-radius: 10px;
+            opacity: 0;
+        }
+        
+        .scanner-container.scanning .scan-frame {
+            opacity: 0.6;
+        }
+        
+        @keyframes scan {
+            0% { top: 25%; }
+            50% { top: 50%; }
+            100% { top: 75%; }
+        }
+        
+        .controls {
+            margin: 25px 0;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
+            min-width: 140px;
+        }
+        
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+            background: linear-gradient(45deg, #059669, #047857);
+        }
+        
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button.danger {
+            background: linear-gradient(45deg, #ef4444, #dc2626);
+        }
+        
+        button.danger:hover:not(:disabled) {
+            background: linear-gradient(45deg, #dc2626, #b91c1c);
+        }
+        
+        .camera-select {
+            margin: 20px 0;
+            color: #065f46;
+        }
+        
+        select {
+            background: white;
+            border: 2px solid #10b981;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            color: #065f46;
+            min-width: 250px;
+            cursor: pointer;
+        }
+        
+        .status {
+            margin: 20px 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(16, 185, 129, 0.2);
+        }
+        
+        .status.scanning {
+            background: rgba(16, 185, 129, 0.2);
+            color: #065f46;
+            border: 2px solid rgba(16, 185, 129, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 2px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .status.stopped {
+            background: rgba(251, 191, 36, 0.1);
+            color: #d97706;
+            border: 2px solid rgba(251, 191, 36, 0.3);
+        }
+        
+        .status.ready {
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+            border: 2px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .result-container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 2px solid rgba(52, 211, 153, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .result-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #064e3b;
+        }
+        
+        .barcode-number {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 3px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #064e3b;
+            word-break: break-all;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(16, 185, 129, 0.1);
+        }
+        
+        .barcode-number.empty {
+            font-size: 1.2rem;
+            color: #6b7280;
+            font-weight: normal;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .result-details {
+            background: #f0fdf4;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: left;
+            border: 1px solid #bbf7d0;
+        }
+        
+        .detail-item {
+            margin: 8px 0;
+            font-size: 1rem;
+            color: #065f46;
+        }
+        
+        .detail-label {
+            font-weight: 600;
+            color: #047857;
+        }
+        
+        .permission-notice {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            color: #1d4ed8;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-size: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .scanner-container {
+                padding: 20px;
+            }
+            
+            #video {
+                height: 300px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 250px;
+            }
+            
+            select {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .barcode-number {
+                font-size: 1.4rem;
+                padding: 20px;
+            }
+        }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com" type="text/javascript"></script>
+ </head>
+ <body>
+  <main class="container">
+   <h1>📱 條碼編號掃描器</h1>
+   <p class="subtitle">掃描一維條碼，立即顯示條碼編號</p>
+   <div class="permission-notice" id="permissionNotice"><strong>📋 使用說明：</strong><br>
+     • 首次使用需要允許瀏覽器存取攝像頭<br>
+     • 將條碼對準攝像頭畫面中央<br>
+     • 系統會自動識別並顯示條碼編號
+   </div>
+   <div class="scanner-container" id="scannerContainer">
+    <div class="video-container">
+     <video id="video" autoplay muted playsinline></video>
+     <div class="scan-overlay">
+      <div class="scan-line"></div>
+      <div class="scan-frame"></div>
+     </div>
+    </div>
+    <div class="camera-select"><label for="cameraSelect"><strong>選擇攝像頭：</strong></label><br><select id="cameraSelect"> <option value="">正在載入攝像頭...</option> </select>
+    </div>
+    <div class="controls"><button id="startBtn">🎥 開啟攝像頭</button> <button id="stopBtn" class="danger" disabled>⏹️ 停止掃描</button> <button id="switchBtn" disabled>🔄 切換攝像頭</button>
+    </div>
+    <div class="status ready" id="status">
+     點擊「開啟攝像頭」開始掃描條碼
+    </div>
+   </div>
+   <div class="result-container">
+    <div class="result-title">
+     🎯 條碼編號
+    </div>
+    <div class="barcode-number empty" id="barcodeNumber">
+     尚未掃描到條碼<br><small style="font-size: 0.9rem;">開啟攝像頭後將條碼對準鏡頭</small>
+    </div>
+    <div class="result-details" id="resultDetails" style="display: none;">
+     <div class="detail-item"><span class="detail-label">條碼格式：</span> <span id="barcodeFormat">-</span>
+     </div>
+     <div class="detail-item"><span class="detail-label">掃描時間：</span> <span id="scanTime">-</span>
+     </div>
+    </div>
+   </div>
+  </main>
+  <script>
+        class BarcodeNumberScanner {
+            constructor() {
+                this.codeReader = new ZXing.BrowserMultiFormatReader();
+                this.selectedDeviceId = null;
+                this.isScanning = false;
+                this.videoDevices = [];
+                this.currentDeviceIndex = 0;
+                
+                this.video = document.getElementById('video');
+                this.startBtn = document.getElementById('startBtn');
+                this.stopBtn = document.getElementById('stopBtn');
+                this.switchBtn = document.getElementById('switchBtn');
+                this.status = document.getElementById('status');
+                this.barcodeNumber = document.getElementById('barcodeNumber');
+                this.barcodeFormat = document.getElementById('barcodeFormat');
+                this.scanTime = document.getElementById('scanTime');
+                this.resultDetails = document.getElementById('resultDetails');
+                this.cameraSelect = document.getElementById('cameraSelect');
+                this.scannerContainer = document.getElementById('scannerContainer');
+                this.permissionNotice = document.getElementById('permissionNotice');
+                
+                this.init();
+            }
+            
+            async init() {
+                this.bindEvents();
+                await this.requestPermissions();
+                await this.loadCameras();
+            }
+            
+            async requestPermissions() {
+                try {
+                    this.updateStatus('正在請求攝像頭權限...', 'scanning');
+                    
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { 
+                            facingMode: 'environment'
+                        } 
+                    });
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    this.updateStatus('攝像頭權限已獲得，正在載入設備...', 'ready');
+                    this.permissionNotice.style.display = 'none';
+                    
+                } catch (error) {
+                    console.error('權限請求失敗:', error);
+                    this.updateStatus('無法存取攝像頭，請檢查瀏覽器權限設定', 'error');
+                    this.permissionNotice.innerHTML = `
+                        <strong>⚠️ 權限被拒絕：</strong><br>
+                        請在瀏覽器設定中允許此網站使用攝像頭，然後重新整理頁面
+                    `;
+                }
+            }
+            
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.startScanning());
+                this.stopBtn.addEventListener('click', () => this.stopScanning());
+                this.switchBtn.addEventListener('click', () => this.switchCamera());
+                this.cameraSelect.addEventListener('change', (e) => {
+                    this.selectedDeviceId = e.target.value;
+                    this.currentDeviceIndex = this.videoDevices.findIndex(device => device.deviceId === e.target.value);
+                });
+            }
+            
+            async loadCameras() {
+                try {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    this.videoDevices = devices.filter(device => device.kind === 'videoinput');
+                    
+                    this.cameraSelect.innerHTML = '';
+                    
+                    if (this.videoDevices.length === 0) {
+                        this.cameraSelect.innerHTML = '<option value="">未找到攝像頭設備</option>';
+                        this.updateStatus('未找到可用的攝像頭設備', 'error');
+                        return;
+                    }
+                    
+                    this.videoDevices.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `攝像頭 ${index + 1}`;
+                        this.cameraSelect.appendChild(option);
+                    });
+                    
+                    const backCamera = this.videoDevices.find(device => 
+                        device.label.toLowerCase().includes('back') || 
+                        device.label.toLowerCase().includes('rear') ||
+                        device.label.toLowerCase().includes('environment')
+                    );
+                    
+                    if (backCamera) {
+                        this.selectedDeviceId = backCamera.deviceId;
+                        this.currentDeviceIndex = this.videoDevices.findIndex(device => device.deviceId === backCamera.deviceId);
+                    } else {
+                        this.selectedDeviceId = this.videoDevices[0].deviceId;
+                        this.currentDeviceIndex = 0;
+                    }
+                    
+                    this.cameraSelect.value = this.selectedDeviceId;
+                    this.updateStatus('攝像頭已就緒，點擊開始掃描', 'ready');
+                    
+                } catch (error) {
+                    console.error('載入攝像頭列表失敗:', error);
+                    this.updateStatus('載入攝像頭列表失敗', 'error');
+                }
+            }
+            
+            async startScanning() {
+                if (this.isScanning) return;
+                
+                try {
+                    this.updateStatus('正在啟動攝像頭...', 'scanning');
+                    this.startBtn.disabled = true;
+                    this.stopBtn.disabled = false;
+                    this.switchBtn.disabled = false;
+                    this.scannerContainer.classList.add('scanning');
+                    
+                    await this.codeReader.decodeFromVideoDevice(
+                        this.selectedDeviceId,
+                        this.video,
+                        (result, error) => {
+                            if (result) {
+                                this.onBarcodeDetected(result);
+                            }
+                            if (error && !(error instanceof ZXing.NotFoundException)) {
+                                console.error('掃描錯誤:', error);
+                            }
+                        }
+                    );
+                    
+                    this.isScanning = true;
+                    this.updateStatus('🔍 正在掃描條碼... 請將條碼對準攝像頭', 'scanning');
+                    
+                } catch (error) {
+                    console.error('啟動掃描失敗:', error);
+                    this.updateStatus('啟動攝像頭失敗，請檢查設備連接和權限', 'error');
+                    this.resetButtons();
+                }
+            }
+            
+            stopScanning() {
+                if (!this.isScanning) return;
+                
+                this.codeReader.reset();
+                this.isScanning = false;
+                this.updateStatus('掃描已停止', 'stopped');
+                this.resetButtons();
+                this.scannerContainer.classList.remove('scanning');
+            }
+            
+            async switchCamera() {
+                if (!this.isScanning || this.videoDevices.length <= 1) return;
+                
+                this.currentDeviceIndex = (this.currentDeviceIndex + 1) % this.videoDevices.length;
+                this.selectedDeviceId = this.videoDevices[this.currentDeviceIndex].deviceId;
+                this.cameraSelect.value = this.selectedDeviceId;
+                
+                this.codeReader.reset();
+                
+                try {
+                    await this.codeReader.decodeFromVideoDevice(
+                        this.selectedDeviceId,
+                        this.video,
+                        (result, error) => {
+                            if (result) {
+                                this.onBarcodeDetected(result);
+                            }
+                        }
+                    );
+                    
+                    this.updateStatus('🔍 已切換攝像頭，正在掃描條碼...', 'scanning');
+                    
+                } catch (error) {
+                    console.error('切換攝像頭失敗:', error);
+                    this.updateStatus('切換攝像頭失敗', 'error');
+                }
+            }
+            
+            onBarcodeDetected(result) {
+                const barcodeText = result.getText();
+                const format = result.getBarcodeFormat();
+                const timestamp = new Date().toLocaleString('zh-TW');
+                
+                // 顯示條碼編號
+                this.barcodeNumber.textContent = barcodeText;
+                this.barcodeNumber.classList.remove('empty');
+                
+                // 顯示詳細資訊
+                this.barcodeFormat.textContent = format;
+                this.scanTime.textContent = timestamp;
+                this.resultDetails.style.display = 'block';
+                
+                this.updateStatus(`✅ 成功掃描條碼編號！`, 'scanning');
+                
+                // 播放成功音效和視覺反饋
+                this.playSuccessSound();
+                this.showSuccessAnimation();
+            }
+            
+            playSuccessSound() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                    oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+                    
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } catch (error) {
+                    // 音效播放失敗不影響主要功能
+                }
+            }
+            
+            showSuccessAnimation() {
+                const overlay = document.querySelector('.scan-overlay');
+                overlay.style.background = 'rgba(16, 185, 129, 0.3)';
+                overlay.style.transition = 'background 0.3s ease';
+                
+                // 條碼編號區域閃爍效果
+                this.barcodeNumber.style.animation = 'pulse 0.5s ease-in-out 2';
+                
+                setTimeout(() => {
+                    overlay.style.background = 'transparent';
+                }, 300);
+            }
+            
+            updateStatus(message, type = '') {
+                this.status.textContent = message;
+                this.status.className = `status ${type}`;
+            }
+            
+            resetButtons() {
+                this.startBtn.disabled = false;
+                this.stopBtn.disabled = true;
+                this.switchBtn.disabled = true;
+            }
+        }
+        
+        // 頁面載入完成後自動初始化掃描器
+        document.addEventListener('DOMContentLoaded', () => {
+            new BarcodeNumberScanner();
+        });
+    </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9958776785a6a39d',t:'MTc2MTYzMzg4NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
